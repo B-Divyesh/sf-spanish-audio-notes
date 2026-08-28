@@ -36,6 +36,9 @@ Completed locally on 2026-08-28:
 - Initial bundles: app JavaScript 18.79 KB (7.12 KB gzip), app CSS 13.10 KB (3.50 KB gzip), landing JavaScript 2.17 KB (1.12 KB gzip), hero WebP 125 KB / responsive source 26 KB.
 - Native release build: `.deb` 5.5 MB and AppImage 76.3 MB. AppImage is a stripped x86-64 static PIE launcher.
 - Release-manifest generator exercised against all five platform keys and produced five checksums.
+- GitHub Actions release run `33162130429`: macOS arm64/x64, Windows x64, Linux x64, and release assembly all passed.
+- Public release: `https://github.com/B-Divyesh/sf-spanish-audio-notes/releases/tag/v0.1.3` with eight assets (two DMGs, MSI, EXE, AppImage, DEB, `SHA256SUMS`, and `latest.json`).
+- Independent public-asset check: downloaded `Audio.Margin_0.1.3_amd64.deb` (5,741,738 bytes) through its `latest.json` URL and matched SHA-256 `5d3d03bba5434abc63a48e108ea18d081c8e9af92caa99b8daa4f0986af473ca` against `SHA256SUMS`.
 - `npm audit`: 0 vulnerabilities.
 
 ## Product boundaries
@@ -48,15 +51,15 @@ Completed locally on 2026-08-28:
 ## Known gaps
 
 - Installers are intentionally unsigned until the owner provides platform certificates. OS warnings are disclosed on the site and in the README.
-- The static site’s checked-in `latest.json` is a safe pre-release fallback; production reads the release-hosted manifest. It points to the release page until the first workflow completes.
+- The static site’s checked-in `latest.json` remains a safe offline fallback to the release page; production reads the verified release-hosted manifest.
 - Automatic app updating is not implemented, so no updater manifest is shipped.
+- The earlier v0.1.2 release was superseded after public verification exposed GitHub’s space-to-dot asset-name normalization; v0.1.3 normalizes names before hashing and is the verified latest release.
 
 ## Needs operator action
 
 1. Register `spanish-audio-notes` in the Sociobot billing engine with a €24 one-time price and return URL `https://spanish-audio-notes.sociobot.in/`.
 2. For signed builds, add and wire `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`, `WINDOWS_CERT_PFX`, and `WINDOWS_CERT_PASSWORD`. The current workflow deliberately expects none and creates unsigned packages.
 3. Deploy exactly `dist/site/`; do not deploy `dist/app/` as the public landing site.
-4. After the first release completes, download one asset and compare it against `SHA256SUMS`; the workflow also embeds the same digest in `latest.json`.
 
 ## Next steps
 
