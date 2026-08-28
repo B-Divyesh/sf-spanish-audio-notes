@@ -59,11 +59,11 @@ jobs:
         with: { path: release-assets, merge-multiple: true }
       - name: Determine release tag
         shell: bash
-        run: echo "RELEASE_TAG=${GITHUB_REF_TYPE:+$GITHUB_REF_NAME}" >> "$GITHUB_ENV"
+        run: echo "RELEASE_TAG=$GITHUB_REF_NAME" >> "$GITHUB_ENV"
       - name: Use package version for manual releases
         if: github.ref_type != 'tag'
         shell: bash
-        run: echo "RELEASE_TAG=v$(node -p "require('./package.json').version")" >> "$GITHUB_ENV"
+        run: node -p '"RELEASE_TAG=v" + require("./package.json").version' >> "$GITHUB_ENV"
       - run: node scripts/generate-release-manifest.mjs release-assets
       - uses: softprops/action-gh-release@v2
         with:
@@ -72,5 +72,3 @@ jobs:
           generate_release_notes: true
           files: |
             release-assets/**/*
-            release-assets/SHA256SUMS
-            release-assets/latest.json
