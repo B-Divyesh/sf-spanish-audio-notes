@@ -31,6 +31,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+      - name: Require the filesystem-capable macOS baseline
+        if: startsWith(matrix.platform, 'macos-')
+        shell: bash
+        run: echo "MACOSX_DEPLOYMENT_TARGET=10.15" >> "$GITHUB_ENV"
       - name: Install Linux system packages
         if: matrix.platform == 'ubuntu-22.04'
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libasound2-dev libclang-dev cmake file
