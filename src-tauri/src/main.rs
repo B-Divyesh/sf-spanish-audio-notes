@@ -1,1 +1,3 @@
-fn main() { audio_margin_lib::run() }
+fn main() {
+    audio_margin_lib::run()
+}
