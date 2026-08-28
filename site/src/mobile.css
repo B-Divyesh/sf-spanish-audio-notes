@@ -1,0 +1,4 @@
+.commands,
+.commands button,
+.commands code { min-width: 0; }
+.commands button { width: 100%; }
