@@ -1,0 +1,26 @@
+[package]
+name = "audio-margin"
+version = "0.1.0"
+description = "Private, time-linked Spanish audio notes"
+authors = ["Param Factory"]
+license = "MIT"
+edition = "2021"
+
+[lib]
+name = "audio_margin_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["protocol-asset"] }
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+whisper-rs = "0.14"
+symphonia = { version = "0.5", features = ["all"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream"] }
+futures-util = "0.3"
+tokio = { version = "1", features = ["fs", "io-util"] }
+
