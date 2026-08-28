@@ -4,7 +4,7 @@ import { join, basename } from "node:path";
 
 const root = process.argv[2] ?? "release-assets";
 const repository = process.env.GITHUB_REPOSITORY ?? "B-Divyesh/sf-spanish-audio-notes";
-const tag = process.env.RELEASE_TAG ?? "v0.1.1";
+const tag = process.env.RELEASE_TAG ?? "v0.1.2";
 async function walk(dir) { return (await readdir(dir, { withFileTypes: true })).flatMap((entry) => entry.isDirectory() ? [] : [join(dir, entry.name)]).concat(...await Promise.all((await readdir(dir, { withFileTypes: true })).filter(e => e.isDirectory()).map(e => walk(join(dir, e.name))))); }
 const files = (await walk(root)).filter((file) => /\.(dmg|msi|exe|AppImage|deb)$/i.test(file));
 const select = (test) => files.find((file) => test(basename(file)));
