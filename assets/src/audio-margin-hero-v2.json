@@ -1,0 +1,9 @@
+{
+  "generator": "/opt/fleet/lib/gen-image.sh",
+  "deployment": "factory-image",
+  "date": "2026-08-28",
+  "size": "1536x1024",
+  "quality": "high",
+  "review": "Accepted: exactly five tabs; no people, readable text, logos, brands, or visible generation artifacts.",
+  "prompt": "Use case: stylized-concept. Asset type: landing-page hero editorial still life. Top-down cast-concrete study desk with honest pores and chipped edges. An unbranded compact audio recorder, one narrow rough-paper strip with abstract waveform marks only, one graphite pencil, and a single column of FIVE moss-green rectangular paper tabs. Count is essential: five tabs total, no more, no fewer. Tactile editorial product photography, brutalist composition, not glossy. Landscape, objects weighted lower right, calm negative space upper left. Cool overcast light. Charcoal basalt, wet concrete, chalk paper, moss green. No people, hands, logos, readable text, watermark, screens, brands, extra tabs, pseudo-writing, gradients, neon, or excessive props."
+}

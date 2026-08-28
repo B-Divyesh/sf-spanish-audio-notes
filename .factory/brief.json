@@ -1,0 +1,21 @@
+{
+  "slug": "spanish-audio-notes",
+  "title": "Audio Margin",
+  "artifact_class": "desktop-app",
+  "user": "Students and professionals attending Spanish-language classes or meetings who need private, time-linked notes and recall prompts from recordings.",
+  "smallest_useful_product": "A desktop-local app that runs a selectable on-device Spanish speech model, shows a time-linked transcript, and lets users pin a sentence with their own note/question; session view caps the next review at five pins.",
+  "success_measure": "In pilot use, 60% of sessions produce 3–8 pinned prompts and users revisit at least one pin within seven days.",
+  "monetization": "one-time",
+  "constraints": [
+    "Obtain consent before recording",
+    "Process audio locally",
+    "Use redistribution-compatible models",
+    "Support deletion and Spanish regional variants"
+  ],
+  "non_goals": [
+    "Cloud meeting bot",
+    "Speaker surveillance",
+    "Automatic flashcard generation",
+    "Hosted recordings"
+  ]
+}
