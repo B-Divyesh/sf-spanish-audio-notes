@@ -1,6 +1,6 @@
 [package]
 name = "audio-margin"
-version = "0.1.2"
+version = "0.1.3"
 description = "Private, time-linked Spanish audio notes"
 authors = ["Param Factory"]
 license = "MIT"

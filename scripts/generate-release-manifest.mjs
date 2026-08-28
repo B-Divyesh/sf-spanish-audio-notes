@@ -1,12 +1,19 @@
 import { createHash } from "node:crypto";
-import { readdir, readFile, writeFile } from "node:fs/promises";
-import { join, basename } from "node:path";
+import { readdir, readFile, rename, writeFile } from "node:fs/promises";
+import { join, basename, dirname } from "node:path";
 
 const root = process.argv[2] ?? "release-assets";
 const repository = process.env.GITHUB_REPOSITORY ?? "B-Divyesh/sf-spanish-audio-notes";
-const tag = process.env.RELEASE_TAG ?? "v0.1.2";
+const tag = process.env.RELEASE_TAG ?? "v0.1.3";
 async function walk(dir) { return (await readdir(dir, { withFileTypes: true })).flatMap((entry) => entry.isDirectory() ? [] : [join(dir, entry.name)]).concat(...await Promise.all((await readdir(dir, { withFileTypes: true })).filter(e => e.isDirectory()).map(e => walk(join(dir, e.name))))); }
-const files = (await walk(root)).filter((file) => /\.(dmg|msi|exe|AppImage|deb)$/i.test(file));
+const discovered = (await walk(root)).filter((file) => /\.(dmg|msi|exe|AppImage|deb)$/i.test(file));
+const files = [];
+for (const file of discovered) {
+  const safeName = basename(file).replace(/\s+/g, ".");
+  const safePath = join(dirname(file), safeName);
+  if (safePath !== file) await rename(file, safePath);
+  files.push(safePath);
+}
 const select = (test) => files.find((file) => test(basename(file)));
 const selected = {
   macos_arm64: select((n) => /aarch64|arm64/i.test(n) && /\.dmg$/i.test(n)),

@@ -1,5 +1,5 @@
 {
-  "version": "0.1.2",
+  "version": "0.1.3",
   "platforms": {
     "windows": { "url": "https://github.com/B-Divyesh/sf-spanish-audio-notes/releases/latest" },
     "macos_arm64": { "url": "https://github.com/B-Divyesh/sf-spanish-audio-notes/releases/latest" },
