@@ -1,89 +1,70 @@
-# Audio Margin v0.1.3 handoff
+# Audio Margin v0.1.4 repair handoff
 
-## Independent verification status — FAIL (2026-08-30)
+## Outcome
 
-Candidate `147ec24368ceb5aa0a29b66043ae518c63dc2d55` at
-https://spanish-audio-notes.sociobot.in/ **fails acceptance and must not be
-released/accepted**. The prior builder assertions below are retained as
-historical context, but are superseded by the independent evidence in
-[`verification.md`](verification.md).
+Repaired every release blocker from independent report commit `1738ba4dd16edeed49ec30e980fc74b39b9a4e3b` against candidate `147ec24368ceb5aa0a29b66043ae518c63dc2d55`.
 
-Release blockers: the required `.factory/claims.json` is missing; the live
-first screen has no one-click sample demo; the in-app sample writes into the
-real localStorage namespace rather than an isolated sandbox; and every cold
-landing-page load logs a CORS error while fetching a GitHub release manifest.
-The live asset hashes match this candidate exactly, so this is not a stale
-deployment. Live responses also omit CSP and route unknown pages to the
-landing page with HTTP 200 rather than a real 404.
+Implementation commit: `1ce486d` (`fix: isolate demo and harden release delivery`). The static site was deployed to the existing `sf-spanish-audio-notes` Static Web App in resource group `sociobot`; no other service, app settings, database, or secret store was accessed. The custom production URL is `https://spanish-audio-notes.sociobot.in/`.
 
-Local results: `npm ci`, `npm test` (2/2), `npm run test:e2e` (3/3), and
-`npm run build` passed. `npm run check` and native cargo tests were blocked by
-the verifier container lacking the documented `glib-2.0` development package;
-therefore the native desktop/import/transcription path remains unverified.
+## Release-blocker repairs
 
-## What was built
+- Added `.factory/claims.json` with 16 independently runnable browser claims and two unit-level native/installer claims. `npm run test:claims` runs all tagged coverage.
+- Added a visible first-screen `Probar con datos de ejemplo` action and public `/demo/` entry point.
+- Split real and sample state into `audio-margin:sessions:v1` and `demo:audio-margin:sessions:v1`. Demo mode never reads the real key. Its persistent banner provides `Restablecer demo` and `Empezar de verdad`.
+- Bundled an original 12-second audio texture, six Spanish transcript segments, and five ready-to-review learner questions. Added `.factory/demo.md` and a three-frame screenshot walkthrough.
+- Replaced the browser fetch to `github.com/.../latest/download/latest.json` with `api.github.com/repos/B-Divyesh/sf-spanish-audio-notes/releases/latest`. Release metadata is cached for one hour. Missing assets produce a calm release-page fallback with no uncaught error.
+- Added a response-header CSP allowing only the GitHub metadata API, removed the SPA catch-all, and added a designed `/404.html` response override. Unknown production URLs now return HTTP 404.
+- Added `.factory/copy-audit.md`, route metadata, canonical/Open Graph data, a social image, sitemap demo entry, and complete legal-route headers/footers.
+- Added release-workflow verification before the Tauri build matrix. Release binaries use Rust stripping, thin LTO, and one codegen unit.
 
-- A Tauri 2 desktop application for private, local Spanish transcription.
-- Consent-gated WAV/MP3/M4A/OGG/FLAC import with selectable Whisper `tiny`, `base`, and `small` models.
-- Model downloads from upstream whisper.cpp with pinned SHA-256 verification before use.
-- Six Spanish regional-context choices, time-linked transcript playback, search, keyboard navigation, and clear processing/error/empty states.
-- Learner-authored pinned questions, a capped five-item review, review timestamps, JSON export, and confirmed local deletion.
-- Local-first persistence with no account or telemetry. Audio is never uploaded.
-- One-time Sociobot license flow: hosted checkout, return-token capture, paste-to-restore, optimistic offline unlock, and at-most-daily verification.
-- A responsive Spanish installer site in `dist/site`, with OS detection, privacy/terms pages, generated hero art, and checksum-verifying shell/PowerShell installers.
-- Tauri release automation for macOS arm64/x64, Windows, Linux AppImage/deb, `SHA256SUMS`, and `latest.json`.
+## Exact local verification
 
-## Verification
-
-Run from a clean checkout:
+Run from a clean clone:
 
 ```sh
 npm ci
 npm test
-npm run build
 npm run test:e2e
+npm run test:claims
 npm run check
+cargo test --manifest-path src-tauri/Cargo.toml
+npm run build
+CI=true npm run tauri build -- --bundles deb
 ```
 
-Completed locally on 2026-08-28:
+Results on 2026-08-30:
 
-- `npm test`: 2/2 unit tests passed.
-- `cargo test --manifest-path src-tauri/Cargo.toml`: 2/2 native tests passed.
-- `npx tsc --noEmit`: passed.
-- `npm run build`: passed; `dist/site/index.html` and `dist/app/index.html` produced.
-- Playwright 1.58.2: 3/3 flows passed, including 390 px viewport and axe serious/critical = 0.
-- Factory `verify-url.sh`: HTTP 200, no console errors, `lang=es`, one `h1`, `main` present, no missing image alt or unnamed buttons; report in `.factory/evidence/verify.json`.
-- Lighthouse 13 mobile: Performance 100, Accessibility 100, Best Practices 100, SEO 100; FCP 1.0 s, LCP 1.9 s, CLS 0, TBT 0 ms.
-- Initial bundles: app JavaScript 18.79 KB (7.12 KB gzip), app CSS 13.10 KB (3.50 KB gzip), landing JavaScript 2.17 KB (1.12 KB gzip), hero WebP 125 KB / responsive source 26 KB.
-- Native release build: `.deb` 5.5 MB and AppImage 76.3 MB. AppImage is a stripped x86-64 static PIE launcher.
-- Release-manifest generator exercised against all five platform keys and produced five checksums.
-- GitHub Actions release run `33162130429`: macOS arm64/x64, Windows x64, Linux x64, and release assembly all passed.
-- Public release: `https://github.com/B-Divyesh/sf-spanish-audio-notes/releases/tag/v0.1.3` with eight assets (two DMGs, MSI, EXE, AppImage, DEB, `SHA256SUMS`, and `latest.json`).
-- Independent public-asset check: downloaded `Audio.Margin_0.1.3_amd64.deb` (5,741,738 bytes) through its `latest.json` URL and matched SHA-256 `5d3d03bba5434abc63a48e108ea18d081c8e9af92caa99b8daa4f0986af473ca` against `SHA256SUMS`.
-- `npm audit`: 0 vulnerabilities.
+- `npm ci`: passed; 76 packages installed; 0 audit vulnerabilities.
+- `npm test`: 7/7 Vitest unit and contract tests passed.
+- `npm run test:e2e`: 20/20 Playwright 1.58.2 browser tests passed, including the console-clean offline release fallback.
+- `npm run test:claims`: 16/16 tagged browser tests and 2/2 tagged unit contracts passed.
+- `npm run check`: TypeScript and Cargo check passed after installing the documented Tauri Linux packages.
+- Native tests: 3/3 passed, including decoding the bundled WAV as 12 seconds at 16 kHz.
+- `npm run build`: passed and produced `dist/app/` plus `dist/site/`.
+- Initial bundles: app JS 20.42 KB / 7.71 KB gzip; app CSS 13.81 KB / 3.63 KB gzip; site JS 2.21 KB / 1.13 KB gzip; site CSS 9.89 KB / 2.77 KB gzip; hero 125 KB.
+- Local package: `Audio Margin_0.1.4_amd64.deb`, 5.1 MB, containing a stripped 12 MB x86-64 PIE executable. Local package SHA-256: `12fda526664630e07020cbba88fb47ebbf1ac9eb9b6260bd2bc90f5f22cd3fb8`.
+- Static Web Apps emulator: `/`, `/demo/`, `/privacy/`, and `/terms/` returned 200 with CSP; `/not-a-real-page` returned 404.
+- Production-style browser checks at desktop and 390 px: no console/page errors, no horizontal overflow, one h1, main landmark, reduced motion enabled, and zero axe serious/critical findings on both `/` and `/demo/`.
+- Factory `verify-url.sh`: landing and demo passed title, `lang=es`, one h1, main, alt text, labelled buttons, and clean-console checks. Evidence is under `.factory/evidence/`.
+- Lighthouse 13 mobile: Performance 100, Accessibility 100, Best Practices 100, SEO 100; FCP 1.0 s, LCP 1.9 s, CLS 0, TBT 0 ms. Raw report: `.factory/evidence/lighthouse.json`.
+- Offline/update policy: after `/demo/` loads, reset and five-item review remain usable with the browser offline. The desktop app has no automatic updater and ships no updater manifest.
 
-## Product boundaries
+## Live verification
 
-- Audio Margin imports an existing consented recording; it does not secretly capture microphones or join meetings.
-- Transcription quality varies with noise and specialist vocabulary, so the UI keeps learner notes authored by the learner.
-- Models are downloaded on first use because even the smallest supported model is about 75 MB; no model or recording is hosted by this product.
-- The free tier allows 3 local sessions and 5 pins per session. Small-model access and unlimited sessions/pins use the one-time license. Accessibility, deletion, and JSON export remain free.
+- Production deploy completed on 2026-08-30 from `dist/site/`.
+- `GET https://spanish-audio-notes.sociobot.in/`: HTTP 200 with the new demo action and response CSP.
+- `GET https://spanish-audio-notes.sociobot.in/not-a-real-page`: HTTP 404 with the designed Audio Margin 404 page.
+- Live release metadata is requested only from `https://api.github.com`; the former browser CORS URL is absent from source and tests assert it is never requested.
+- GitHub Actions release run: `33297802427` for tag `v0.1.4` (final asset evidence to be recorded when the matrix completes).
 
-## Known gaps
+## Known boundaries
 
-- Installers are intentionally unsigned until the owner provides platform certificates. OS warnings are disclosed on the site and in the README.
-- The static site’s checked-in `latest.json` remains a safe offline fallback to the release page; production reads the verified release-hosted manifest.
-- Automatic app updating is not implemented, so no updater manifest is shipped.
-- The earlier v0.1.2 release was superseded after public verification exposed GitHub’s space-to-dot asset-name normalization; v0.1.3 normalizes names before hashing and is the verified latest release.
+- Installers remain unsigned. macOS notarization and Windows Authenticode require owner certificates.
+- The full 142–466 MB Whisper model path was compile-tested but not downloaded or transcribed in this worker. Native decoding, resampling, model allowlisting, pinned hashes, mismatch deletion, and sample decoding are covered locally; GitHub Actions builds the platform packages.
+- The bundled demo audio is an original synthesized texture, not speech. It demonstrates playback, timestamps, pinning, search, export, review, reset, and isolation without implying transcription accuracy.
+- The billing checkout was not called because this work order forbids connecting to non-`sf-spanish-audio-notes` resources. License behavior is covered with a recorded endpoint response in Playwright.
 
 ## Needs operator action
 
-1. Register `spanish-audio-notes` in the Sociobot billing engine with a €24 one-time price and return URL `https://spanish-audio-notes.sociobot.in/`.
-2. For signed builds, add and wire `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`, `WINDOWS_CERT_PFX`, and `WINDOWS_CERT_PASSWORD`. The current workflow deliberately expects none and creates unsigned packages.
-3. Deploy exactly `dist/site/`; do not deploy `dist/app/` as the public landing site.
-
-## Next steps
-
-- Pilot with varied classroom acoustics and regional vocabulary; tune the initial prompt only from observed errors.
-- Add an in-app update check only if signed releases and an explicit update policy are established.
-- Consider encrypted-at-rest session storage after user research; current storage inherits operating-system account protection.
+- Add Apple and Windows signing credentials when signed packages are required: `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`, `WINDOWS_CERT_PFX`, and `WINDOWS_CERT_PASSWORD`.
+- Confirm the production Sociobot billing registration remains set to the €24 one-time product and the Audio Margin return URL.

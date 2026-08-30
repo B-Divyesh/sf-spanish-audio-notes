@@ -42,6 +42,7 @@ function readCache(): GitHubRelease | undefined {
 async function latestRelease(): Promise<GitHubRelease> {
   const cached = readCache();
   if (cached) return cached;
+  if (!navigator.onLine) throw new Error("Offline");
   const response = await fetch(apiUrl, { headers: { Accept: "application/vnd.github+json" } });
   if (!response.ok) throw new Error(`Release API returned ${response.status}`);
   const release = await response.json() as GitHubRelease;

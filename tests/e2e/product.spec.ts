@@ -32,6 +32,18 @@ test("@claim:release-fallback shows an absent-release state without a console er
   expect(errors).toEqual([]);
 });
 
+test("offline landing skips release metadata and stays console-clean", async ({ page }) => {
+  const errors: string[] = [];
+  const apiRequests: string[] = [];
+  await page.addInitScript(() => Object.defineProperty(navigator, "onLine", { configurable: true, get: () => false }));
+  page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
+  page.on("request", (request) => { if (request.url().startsWith("https://api.github.com")) apiRequests.push(request.url()); });
+  await page.goto("http://127.0.0.1:5173/");
+  await expect(page.locator("#platform-note")).toContainText("se están publicando");
+  expect(apiRequests).toEqual([]);
+  expect(errors).toEqual([]);
+});
+
 test("@claim:demo-isolation keeps sample state out of the real storage namespace", async ({ page }) => {
   await page.goto("http://127.0.0.1:5173/");
   await page.evaluate(() => localStorage.setItem("audio-margin:sessions:v1", JSON.stringify({ sessions: [{ id: "real-record" }] })));
