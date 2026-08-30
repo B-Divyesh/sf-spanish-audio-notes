@@ -1,5 +1,26 @@
 # Audio Margin v0.1.3 handoff
 
+## Independent verification status — FAIL (2026-08-30)
+
+Candidate `147ec24368ceb5aa0a29b66043ae518c63dc2d55` at
+https://spanish-audio-notes.sociobot.in/ **fails acceptance and must not be
+released/accepted**. The prior builder assertions below are retained as
+historical context, but are superseded by the independent evidence in
+[`verification.md`](verification.md).
+
+Release blockers: the required `.factory/claims.json` is missing; the live
+first screen has no one-click sample demo; the in-app sample writes into the
+real localStorage namespace rather than an isolated sandbox; and every cold
+landing-page load logs a CORS error while fetching a GitHub release manifest.
+The live asset hashes match this candidate exactly, so this is not a stale
+deployment. Live responses also omit CSP and route unknown pages to the
+landing page with HTTP 200 rather than a real 404.
+
+Local results: `npm ci`, `npm test` (2/2), `npm run test:e2e` (3/3), and
+`npm run build` passed. `npm run check` and native cargo tests were blocked by
+the verifier container lacking the documented `glib-2.0` development package;
+therefore the native desktop/import/transcription path remains unverified.
+
 ## What was built
 
 - A Tauri 2 desktop application for private, local Spanish transcription.
