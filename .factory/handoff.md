@@ -4,7 +4,7 @@
 
 Repaired every release blocker from independent report commit `1738ba4dd16edeed49ec30e980fc74b39b9a4e3b` against candidate `147ec24368ceb5aa0a29b66043ae518c63dc2d55`.
 
-Implementation commit: `1ce486d` (`fix: isolate demo and harden release delivery`). The static site was deployed to the existing `sf-spanish-audio-notes` Static Web App in resource group `sociobot`; no other service, app settings, database, or secret store was accessed. The custom production URL is `https://spanish-audio-notes.sociobot.in/`.
+Implementation commit: `1ce486d` (`fix: isolate demo and harden release delivery`); verification evidence commit: `8dd1ecf` (`docs: record repair verification evidence`). The static site was deployed to the existing `sf-spanish-audio-notes` Static Web App in resource group `sociobot`; no other service, app settings, database, or secret store was accessed. The custom production URL is `https://spanish-audio-notes.sociobot.in/`.
 
 ## Release-blocker repairs
 
@@ -55,7 +55,10 @@ Results on 2026-08-30:
 - `GET https://spanish-audio-notes.sociobot.in/`: HTTP 200 with the new demo action and response CSP.
 - `GET https://spanish-audio-notes.sociobot.in/not-a-real-page`: HTTP 404 with the designed Audio Margin 404 page.
 - Live release metadata is requested only from `https://api.github.com`; the former browser CORS URL is absent from source and tests assert it is never requested.
-- GitHub Actions release run: `33297802427` for tag `v0.1.4` (final asset evidence to be recorded when the matrix completes).
+- GitHub Actions release run `33297802427` completed successfully for tag `v0.1.4`: verification plus macOS arm64/x64, Linux, Windows, and release jobs all passed.
+- Public release: `https://github.com/B-Divyesh/sf-spanish-audio-notes/releases/tag/v0.1.4`, published with eight assets: two macOS DMGs, Linux AppImage and DEB, Windows MSI and EXE, `latest.json`, and `SHA256SUMS`.
+- Downloaded `latest.json` validates as version `0.1.4` with five platform entries and 64-character SHA-256 values. The downloaded CI DEB passed `sha256sum --check` with `4635d653b97738c5f3be96e731182567eefe4a7a9616900c41f753c479d97e12`.
+- Fresh live desktop and 390 px contexts resolved the detected download buttons to real v0.1.4 assets without console errors. An offline context made no GitHub API request and displayed the calm release-page fallback.
 
 ## Known boundaries
 
