@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatTime, nextReview } from "../app/src/store";
+import { DEMO_STORAGE_KEY, formatTime, nextReview, REAL_STORAGE_KEY } from "../app/src/store";
 import type { Session } from "../app/src/types";
 
 describe("review queue", () => {
@@ -13,5 +13,10 @@ describe("review queue", () => {
     expect(formatTime(0)).toBe("00:00");
     expect(formatTime(125.9)).toBe("02:05");
     expect(formatTime(-2)).toBe("00:00");
+  });
+
+  it("uses visibly separate storage names for real and demo sessions", () => {
+    expect(DEMO_STORAGE_KEY).toMatch(/^demo:/);
+    expect(DEMO_STORAGE_KEY).not.toBe(REAL_STORAGE_KEY);
   });
 });

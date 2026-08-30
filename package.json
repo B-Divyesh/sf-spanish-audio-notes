@@ -1,7 +1,7 @@
 {
   "name": "audio-margin",
   "private": true,
-  "version": "0.1.3",
+  "version": "0.1.4",
   "type": "module",
   "scripts": {
     "dev": "vite --config vite.app.config.ts",
@@ -11,6 +11,7 @@
     "build:site": "vite build --config vite.site.config.ts",
     "assets": "node scripts/optimize-assets.mjs",
     "test": "vitest run",
+    "test:claims": "playwright test --grep @claim && vitest run -t @claim",
     "test:e2e": "playwright test",
     "check": "tsc --noEmit && cargo check --manifest-path src-tauri/Cargo.toml",
     "tauri": "tauri"

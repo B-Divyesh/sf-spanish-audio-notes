@@ -272,4 +272,12 @@ mod tests {
         let input = vec![0.25; 48_000];
         assert_eq!(resample_linear(&input, 48_000).len(), 16_000);
     }
+    #[test]
+    fn bundled_demo_audio_decodes() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../public/assets/audio-margin-sample.wav");
+        let (samples, rate) = decode_audio(&path).expect("sample WAV should decode");
+        assert_eq!(rate, 16_000);
+        assert_eq!(samples.len(), 16_000 * 12);
+    }
 }

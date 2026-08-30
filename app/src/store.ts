@@ -1,18 +1,23 @@
 import type { AppState, Session } from "./types";
 
-const KEY = "audio-margin:sessions:v1";
+export const REAL_STORAGE_KEY = "audio-margin:sessions:v1";
+export const DEMO_STORAGE_KEY = "demo:audio-margin:sessions:v1";
 
-export function loadState(): AppState {
+export function loadState(demo = false): AppState {
   try {
-    const parsed = JSON.parse(localStorage.getItem(KEY) ?? "{}") as AppState;
+    const parsed = JSON.parse(localStorage.getItem(demo ? DEMO_STORAGE_KEY : REAL_STORAGE_KEY) ?? "{}") as AppState;
     return { sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [], activeId: parsed.activeId };
   } catch {
     return { sessions: [] };
   }
 }
 
-export function saveState(state: AppState): void {
-  localStorage.setItem(KEY, JSON.stringify(state));
+export function saveState(state: AppState, demo = false): void {
+  localStorage.setItem(demo ? DEMO_STORAGE_KEY : REAL_STORAGE_KEY, JSON.stringify(state));
+}
+
+export function clearDemoState(): void {
+  localStorage.removeItem(DEMO_STORAGE_KEY);
 }
 
 export function nextReview(session: Session): Session["pins"] {

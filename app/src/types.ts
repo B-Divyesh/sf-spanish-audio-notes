@@ -5,6 +5,7 @@ export type Session = {
   title: string;
   createdAt: string;
   audioPath?: string;
+  sample?: boolean;
   audioName: string;
   variant: string;
   model: string;

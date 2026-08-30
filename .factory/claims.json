@@ -1,0 +1,128 @@
+[
+  {
+    "id": "demo-isolation",
+    "claim": "The sample demo never reads or overwrites real session data.",
+    "where": "landing demo action, demo banner, README",
+    "test": "npm run test:e2e -- --grep @claim:demo-isolation",
+    "sandbox": "fresh browser page with a sentinel real-data key; enter /demo/ and assert separate demo: storage"
+  },
+  {
+    "id": "demo-local-only",
+    "claim": "The bundled sample flow sends no data to another origin.",
+    "where": "demo banner, privacy copy",
+    "test": "npm run test:e2e -- --grep @claim:demo-local-only",
+    "sandbox": "fresh browser context; record every request while playing and reviewing sample data"
+  },
+  {
+    "id": "five-item-review",
+    "claim": "Each review contains no more than five learner-authored questions.",
+    "where": "landing, app, README",
+    "test": "npm run test:e2e -- --grep @claim:five-item-review",
+    "sandbox": "open /demo/ and complete the seeded five-question review"
+  },
+  {
+    "id": "json-export",
+    "claim": "The active session can be exported as JSON.",
+    "where": "app, README",
+    "test": "npm run test:e2e -- --grep @claim:json-export",
+    "sandbox": "open /demo/ and assert a named JSON download begins"
+  },
+  {
+    "id": "keyboard-search",
+    "claim": "Pressing slash focuses transcript search.",
+    "where": "app, README",
+    "test": "npm run test:e2e -- --grep @claim:keyboard-search",
+    "sandbox": "open /demo/, press slash, and assert focus on the labelled search field"
+  },
+  {
+    "id": "time-linked",
+    "claim": "Selecting a transcript timestamp moves playback to that exact segment time.",
+    "where": "landing, app, README",
+    "test": "npm run test:e2e -- --grep @claim:time-linked",
+    "sandbox": "open /demo/, select the 00:04 timestamp, and assert the audio scrubber moves to four seconds"
+  },
+  {
+    "id": "consent-model-options",
+    "claim": "Import requires consent and offers three local models and six Spanish contexts.",
+    "where": "landing, app, README",
+    "test": "npm run test:e2e -- --grep @claim:consent-model-options",
+    "sandbox": "open the real import flow and inspect the required consent control and model/context options"
+  },
+  {
+    "id": "no-hidden-capture",
+    "claim": "The app imports chosen files and never requests microphone or camera capture.",
+    "where": "landing boundaries, privacy page, README",
+    "test": "npm run test:e2e -- --grep @claim:no-hidden-capture",
+    "sandbox": "instrument getUserMedia, open the import flow, and assert no capture request"
+  },
+  {
+    "id": "one-time-price",
+    "claim": "A €24 one-time license has a hosted checkout and paste-to-restore path.",
+    "where": "landing pricing, app, terms, README",
+    "test": "npm run test:e2e -- --grep @claim:one-time-price",
+    "sandbox": "open the license screen and assert the exact price, Sociobot checkout URL, and restore field"
+  },
+  {
+    "id": "no-tracking",
+    "claim": "The site loads no third-party scripts or analytics endpoints.",
+    "where": "landing, privacy page, README",
+    "test": "npm run test:e2e -- --grep @claim:no-tracking",
+    "sandbox": "record landing requests and script sources while mocking the documented GitHub metadata request"
+  },
+  {
+    "id": "local-storage",
+    "claim": "Sessions persist in the application's local browser storage.",
+    "where": "landing, privacy page, README",
+    "test": "npm run test:e2e -- --grep @claim:local-storage",
+    "sandbox": "seed one local session, reload the app, and assert it is restored"
+  },
+  {
+    "id": "session-delete",
+    "claim": "A user can delete a complete local session.",
+    "where": "app, privacy page, README",
+    "test": "npm run test:e2e -- --grep @claim:session-delete",
+    "sandbox": "seed one session, confirm deletion, and assert the stored session list is empty"
+  },
+  {
+    "id": "free-limits",
+    "claim": "The free tier includes three sessions and five pins per session.",
+    "where": "landing pricing, app, README",
+    "test": "npm run test:e2e -- --grep @claim:free-limits",
+    "sandbox": "seed three sessions and assert a fourth opens the €24 license screen"
+  },
+  {
+    "id": "release-download",
+    "claim": "The landing page selects a platform installer from GitHub release metadata.",
+    "where": "landing download action, README",
+    "test": "npm run test:e2e -- --grep @claim:release-download",
+    "sandbox": "mock api.github.com release metadata and assert the matching release asset URL"
+  },
+  {
+    "id": "release-fallback",
+    "claim": "The landing page remains usable when no matching release asset is available.",
+    "where": "landing download status",
+    "test": "npm run test:e2e -- --grep @claim:release-fallback",
+    "sandbox": "return an empty release asset list and assert a calm release-page fallback with no console error"
+  },
+  {
+    "id": "installer-checksum",
+    "claim": "The shell and PowerShell installers verify SHA-256 before opening or installing a package.",
+    "where": "landing, README",
+    "test": "npm test -- -t @claim:installer-checksum",
+    "sandbox": "inspect both shipped installers and the release-manifest generator for the matching SHA-256 checks"
+  },
+  {
+    "id": "model-integrity",
+    "claim": "The native process decodes chosen audio and runs Whisper locally; model downloads use pinned SHA-256 hashes.",
+    "where": "app, README",
+    "test": "npm test -- -t @claim:model-integrity",
+    "sandbox": "inspect the native model table and the mismatch deletion branch"
+  },
+  {
+    "id": "license-return",
+    "claim": "A returned license is stored locally and its valid verdict is reused for one day.",
+    "where": "app, terms, README",
+    "test": "npm run test:e2e -- --grep @claim:license-return",
+    "sandbox": "mock the product verification endpoint, load a return token, reload, and assert only one verification request"
+  }
+]
