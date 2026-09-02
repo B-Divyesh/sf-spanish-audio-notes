@@ -1,4 +1,55 @@
-# Audio Margin v0.1.4 repair handoff
+# Audio Margin independent verification handoff — FAIL
+
+## Verification 2 outcome (2026-09-02)
+
+**FAIL — do not accept or promote candidate
+`06a7738755776b30298ea99172b47abb16804dcc` at
+https://spanish-audio-notes.sociobot.in/.**
+
+Fresh independent verification is recorded in
+[`.factory/verification-2.md`](./verification-2.md). The deployed static files
+match the candidate byte-for-byte, all 18 listed claim commands pass, all local
+build/test gates pass, the one-click demo and first-read screen pass, and the
+released Debian package completes local Spanish transcription. Acceptance is
+blocked by:
+
+1. **P1:** the primary Linux AppImage freezes after creating audio; its WebKit
+   render process exits, so both the bundled sample and real import flow fail.
+   The `.deb` works on the same Ubuntu 24.04 host.
+2. **P1:** any unverified token in `?license=` or local storage bypasses paid
+   limits indefinitely when the verification call is offline.
+3. **P1:** installer checksum and native model-integrity claim tests only search
+   source strings, while several native privacy/account claims are unlisted.
+4. **P2:** multiple site navigation links are below 44 × 44 CSS pixels, and the
+   skip link changes the fragment without moving focus into `<main>`.
+
+Verification evidence added under `.factory/evidence/` includes the frozen
+AppImage, the working DEB transcription/review, fresh desktop/mobile captures,
+and the raw Lighthouse report. No product code, infrastructure, DNS, billing,
+shared service, secret store, or product resource was modified during this
+verification.
+
+## Re-verification commands
+
+```sh
+npm ci
+npm test
+npm run test:e2e
+npm run test:claims
+npm run check
+cargo test --manifest-path src-tauri/Cargo.toml
+npm run build
+CI=true npm run tauri build -- --bundles deb
+```
+
+The detailed report contains exact checksums, request/header evidence,
+Lighthouse metrics, every claim result, and reproduction steps. The previous
+builder handoff remains below for historical context; its earlier PASS evidence
+is superseded by this independent FAIL.
+
+---
+
+# Audio Margin v0.1.4 repair handoff (builder record; superseded)
 
 ## Outcome
 
