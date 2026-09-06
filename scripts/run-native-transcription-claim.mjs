@@ -18,7 +18,7 @@ async function validModel() {
 
 async function downloadModel() {
   for (let attempt = 1; attempt <= 5; attempt += 1) {
-    const response = await fetch(modelUrl, { headers: { "User-Agent": "Audio-Margin-claim/0.1.5" } });
+    const response = await fetch(modelUrl, { headers: { "User-Agent": "Audio-Margin-claim/0.1.6" } });
     if (response.ok) return Buffer.from(await response.arrayBuffer());
     const retryable = response.status === 429 || response.status >= 500;
     const retryAfter = Number(response.headers.get("retry-after"));

@@ -66,7 +66,7 @@ Audited 2026-09-06 against `site/index.html` and its dynamic download states in 
 | Las primeras versiones no están firmadas; consulta las instrucciones de cada sistema. | 12 |
 | Transcribe audio en español y enlaza tus preguntas. | 8 |
 | Ilustración original generada con IA. | 5 |
-| Versión 0.1.5. | 2 |
+| Versión 0.1.6. | 2 |
 
 ## Dynamic states
 

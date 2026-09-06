@@ -326,8 +326,10 @@ function ensureAudio(session: Session) {
         currentAudio.src = audioObjectUrl;
       })
       .catch(announceError);
-  } else {
+  } else if (isTauri) {
     audio.src = convertFileSrc(session.audioPath);
+  } else {
+    audio.src = session.audioPath;
   }
 }
 function stopAudio() { audio?.pause(); audio = undefined; if (audioObjectUrl) URL.revokeObjectURL(audioObjectUrl); audioObjectUrl = undefined; currentTime = 0; activeSegmentId = ""; }

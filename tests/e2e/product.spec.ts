@@ -3,11 +3,11 @@ import AxeBuilder from "@axe-core/playwright";
 
 const apiPattern = "https://api.github.com/repos/B-Divyesh/sf-spanish-audio-notes/releases/latest";
 const releaseFixture = {
-  tag_name: "v0.1.5",
-  html_url: "https://github.com/B-Divyesh/sf-spanish-audio-notes/releases/tag/v0.1.5",
+  tag_name: "v0.1.6",
+  html_url: "https://github.com/B-Divyesh/sf-spanish-audio-notes/releases/tag/v0.1.6",
   assets: [
-    { name: "Audio.Margin_0.1.5_amd64.AppImage", browser_download_url: "https://github.com/B-Divyesh/sf-spanish-audio-notes/releases/download/v0.1.5/Audio.Margin_0.1.5_amd64.AppImage" },
-    { name: "Audio.Margin_0.1.5_x64_en-US.msi", browser_download_url: "https://github.com/B-Divyesh/sf-spanish-audio-notes/releases/download/v0.1.5/Audio.Margin_0.1.5_x64_en-US.msi" }
+    { name: "Audio.Margin_0.1.6_amd64.AppImage", browser_download_url: "https://github.com/B-Divyesh/sf-spanish-audio-notes/releases/download/v0.1.6/Audio.Margin_0.1.6_amd64.AppImage" },
+    { name: "Audio.Margin_0.1.6_x64_en-US.msi", browser_download_url: "https://github.com/B-Divyesh/sf-spanish-audio-notes/releases/download/v0.1.6/Audio.Margin_0.1.6_x64_en-US.msi" }
   ]
 };
 
@@ -60,18 +60,25 @@ test("@claim:demo-local-only makes no cross-origin request during the sample flo
   const context = await browser.newContext();
   const page = await context.newPage();
   const requests: string[] = [];
+  const errors: string[] = [];
   page.on("request", (request) => requests.push(request.url()));
+  page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
+  page.on("pageerror", (error) => errors.push(String(error)));
   await page.goto("http://127.0.0.1:5173/demo/");
   await page.getByRole("button", { name: "Reproducir o pausar" }).click();
+  await expect.poll(async () => Number(await page.locator("[data-scrub]").inputValue())).toBeGreaterThan(0);
   await page.getByRole("button", { name: /Repasar ahora/ }).click();
   await expect(page.getByText("Pregunta 1 de 5")).toBeVisible();
   expect(requests.every((url) => new URL(url).origin === "http://127.0.0.1:5173")).toBe(true);
+  expect(errors).toEqual([]);
   await context.close();
 });
 
 test("@claim:five-item-review presents exactly five learner questions", async ({ page }) => {
   await page.goto("http://127.0.0.1:5173/demo/");
   await expect(page.getByText("5 / 5")).toBeVisible();
+  const questions = await page.locator(".pin-card > p").allTextContents();
+  expect(new Set(questions).size).toBe(5);
   await page.getByRole("button", { name: /Repasar ahora/ }).click();
   for (let index = 1; index <= 5; index += 1) {
     await expect(page.getByText(`Pregunta ${index} de 5`)).toBeVisible();
@@ -223,6 +230,9 @@ test("loaded demo remains usable when the browser goes offline", async ({ browse
 });
 
 test("demo is accessible and usable at 390px", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
+  page.on("pageerror", (error) => errors.push(String(error)));
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("http://127.0.0.1:5173/demo/");
   await expect(page.locator("h1")).toHaveCount(1);
@@ -230,6 +240,7 @@ test("demo is accessible and usable at 390px", async ({ page }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations.filter((item) => ["serious", "critical"].includes(item.impact ?? ""))).toEqual([]);
+  expect(errors).toEqual([]);
 });
 
 test("landing page is accessible, keyboard reachable, and clean", async ({ page }) => {

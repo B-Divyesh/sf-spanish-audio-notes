@@ -39,7 +39,7 @@ irm https://spanish-audio-notes.sociobot.in/install.ps1 | iex
 
 Both installers verify SHA-256 before opening or installing a package. Version 0.1 packages are unsigned, so the operating system displays its normal warning.
 
-Tags matching `v*` run the GitHub Actions release matrix for macOS arm64/x64, Windows, and Linux. The release includes `SHA256SUMS` and `latest.json`. The public site reads release metadata through `api.github.com` and shows a quiet fallback when an installer is absent.
+Tags matching `v*` run the GitHub Actions release matrix for macOS arm64/x64, Windows, and Linux. Linux ships as AppImage, DEB, and RPM packages. The release includes every package in `SHA256SUMS` and `latest.json`. The public site reads release metadata through `api.github.com` and shows a quiet fallback when an installer is absent.
 
 Deploy only `dist/site/`. Infrastructure, DNS, and billing configuration stay outside this repository.
 
