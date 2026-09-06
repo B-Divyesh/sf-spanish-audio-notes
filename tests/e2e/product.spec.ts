@@ -3,11 +3,11 @@ import AxeBuilder from "@axe-core/playwright";
 
 const apiPattern = "https://api.github.com/repos/B-Divyesh/sf-spanish-audio-notes/releases/latest";
 const releaseFixture = {
-  tag_name: "v0.1.4",
-  html_url: "https://github.com/B-Divyesh/sf-spanish-audio-notes/releases/tag/v0.1.4",
+  tag_name: "v0.1.5",
+  html_url: "https://github.com/B-Divyesh/sf-spanish-audio-notes/releases/tag/v0.1.5",
   assets: [
-    { name: "Audio.Margin_0.1.4_amd64.AppImage", browser_download_url: "https://github.com/B-Divyesh/sf-spanish-audio-notes/releases/download/v0.1.4/Audio.Margin_0.1.4_amd64.AppImage" },
-    { name: "Audio.Margin_0.1.4_x64_en-US.msi", browser_download_url: "https://github.com/B-Divyesh/sf-spanish-audio-notes/releases/download/v0.1.4/Audio.Margin_0.1.4_x64_en-US.msi" }
+    { name: "Audio.Margin_0.1.5_amd64.AppImage", browser_download_url: "https://github.com/B-Divyesh/sf-spanish-audio-notes/releases/download/v0.1.5/Audio.Margin_0.1.5_amd64.AppImage" },
+    { name: "Audio.Margin_0.1.5_x64_en-US.msi", browser_download_url: "https://github.com/B-Divyesh/sf-spanish-audio-notes/releases/download/v0.1.5/Audio.Margin_0.1.5_x64_en-US.msi" }
   ]
 };
 
@@ -151,7 +151,7 @@ test("@claim:session-delete removes a local session after confirmation", async (
   await page.reload();
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Borrar esta sesión" }).click();
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Escucha");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Transcribe");
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem("audio-margin:sessions:v1") ?? "{}").sessions)).toEqual([]);
 });
 
@@ -167,15 +167,48 @@ test("@claim:free-limits sends a fourth session to the one-time license screen",
   await expect(page.getByRole("heading", { name: "Licencia de pago" })).toBeVisible();
 });
 
-test("@claim:license-return stores the returned license and verifies it once", async ({ page }) => {
+test("@claim:license-return requires a verified verdict and reuses it offline for one day", async ({ browser }) => {
+  const forgedContext = await browser.newContext();
+  const forgedPage = await forgedContext.newPage();
+  await forgedPage.route("https://api.sociobot.in/api/v1/products/spanish-audio-notes/verify?license=forged-offline-token", (route) => route.abort("internetdisconnected"));
+  await forgedPage.goto("http://127.0.0.1:1420/");
+  await forgedPage.evaluate(() => localStorage.setItem("audio-margin:sessions:v1", JSON.stringify({ sessions: [1, 2, 3].map((id) => ({ id: String(id), title: `Clase ${id}`, audioName: "local.wav", createdAt: "2026-08-30T12:00:00Z", variant: "España", model: "base", segments: [], pins: [] })) })));
+  await forgedPage.goto("http://127.0.0.1:1420/?license=forged-offline-token");
+  await forgedPage.getByRole("button", { name: "Nueva sesión" }).first().click();
+  await expect(forgedPage.getByRole("heading", { name: "Licencia de pago" })).toBeVisible();
+  expect(await forgedPage.evaluate(() => JSON.parse(localStorage.getItem("sb_license_verdict:spanish-audio-notes") ?? "null"))).toMatchObject({ token: "forged-offline-token", valid: false });
+  await forgedContext.close();
+
+  const verifiedContext = await browser.newContext();
+  const verifiedPage = await verifiedContext.newPage();
   let calls = 0;
-  await page.route("https://api.sociobot.in/api/v1/products/spanish-audio-notes/verify?license=test-token", (route) => { calls += 1; return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ valid: true, reason: "ok" }) }); });
-  await page.goto("http://127.0.0.1:1420/?license=test-token");
+  await verifiedPage.route("https://api.sociobot.in/api/v1/products/spanish-audio-notes/verify?license=test-token", (route) => {
+    calls += 1;
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ valid: true, reason: "ok" }) });
+  });
+  await verifiedPage.goto("http://127.0.0.1:1420/");
+  await verifiedPage.evaluate(() => localStorage.setItem("audio-margin:sessions:v1", JSON.stringify({ sessions: [1, 2, 3].map((id) => ({ id: String(id), title: `Clase ${id}`, audioName: "local.wav", createdAt: "2026-08-30T12:00:00Z", variant: "España", model: "base", segments: [], pins: [] })) })));
+  await verifiedPage.goto("http://127.0.0.1:1420/?license=test-token");
   await expect.poll(() => calls).toBe(1);
-  expect(await page.evaluate(() => localStorage.getItem("sb_license:spanish-audio-notes"))).toBe("test-token");
-  expect(page.url()).not.toContain("license=");
-  await page.reload();
+  const verdict = await verifiedPage.evaluate(() => JSON.parse(localStorage.getItem("sb_license_verdict:spanish-audio-notes") ?? "null"));
+  expect(verdict).toMatchObject({ token: "test-token", valid: true });
+  expect(verifiedPage.url()).not.toContain("license=");
+  await verifiedPage.reload();
   expect(calls).toBe(1);
+  await verifiedContext.setOffline(true);
+  await verifiedPage.getByRole("button", { name: "Nueva sesión" }).first().click();
+  await expect(verifiedPage.getByRole("heading", { name: "Nueva transcripción" })).toBeVisible();
+  await verifiedContext.close();
+});
+
+test("@claim:no-account opens the local import flow without sign-in", async ({ page }) => {
+  const requests: string[] = [];
+  page.on("request", (request) => requests.push(request.url()));
+  await page.goto("http://127.0.0.1:1420/");
+  await page.getByRole("button", { name: "Importar una grabación" }).click();
+  await expect(page.getByRole("heading", { name: "Nueva transcripción" })).toBeVisible();
+  await expect(page.locator("input[type=email], input[type=password]")).toHaveCount(0);
+  expect(requests.every((url) => new URL(url).origin === "http://127.0.0.1:1420")).toBe(true);
 });
 
 test("loaded demo remains usable when the browser goes offline", async ({ browser }) => {
@@ -207,6 +240,13 @@ test("landing page is accessible, keyboard reachable, and clean", async ({ page 
   await expect(page.locator("h1")).toHaveCount(1);
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "Saltar al contenido" })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("main")).toBeFocused();
+  const undersizedNavigation = await page.locator(".site-head a, footer a").evaluateAll((links) => links.filter((link) => {
+    const box = link.getBoundingClientRect();
+    return box.width > 0 && box.height > 0 && (box.width < 44 || box.height < 44);
+  }).map((link) => link.textContent?.trim()));
+  expect(undersizedNavigation).toEqual([]);
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations.filter((item) => ["serious", "critical"].includes(item.impact ?? ""))).toEqual([]);
   expect(errors).toEqual([]);

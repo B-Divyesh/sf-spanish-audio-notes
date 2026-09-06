@@ -5,6 +5,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import type { AppState, Pin, Segment, Session } from "./types";
 import { clearDemoState, formatTime, loadState, nextReview, saveState } from "./store";
 import { sampleSegments } from "./sample";
+import { LICENSE_KEY, hasVerifiedLicense, licenseNeedsRefresh, recordLicenseAttempt, storeLicenseVerdict, storeUnverifiedLicense } from "./license";
 
 const root = document.querySelector<HTMLDivElement>("#app")!;
 let demoMode = location.pathname.startsWith("/demo") || new URLSearchParams(location.search).get("demo") === "1";
@@ -14,6 +15,7 @@ let currentTime = 0;
 let processing = "";
 let processingProgress = 0;
 let audio: HTMLAudioElement | undefined;
+let audioObjectUrl: string | undefined;
 let activeSegmentId = "";
 
 const isTauri = "__TAURI_INTERNALS__" in window;
@@ -21,7 +23,7 @@ const uid = () => crypto.randomUUID();
 const h = (value: unknown) => String(value ?? "").replace(/[&<>'"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[c]!);
 const active = () => state.sessions.find((item) => item.id === state.activeId);
 const persist = () => saveState(state, demoMode);
-const hasLicense = () => Boolean(localStorage.getItem("sb_license:spanish-audio-notes"));
+const hasLicense = () => hasVerifiedLicense();
 
 function icon(name: "play" | "pause" | "pin" | "plus" | "trash" | "search" | "review") {
   const paths = {
@@ -41,7 +43,7 @@ function shell(content: string) {
       <div class="privacy-signal"><span aria-hidden="true"></span> Solo en este dispositivo</div>
       ${demoMode ? "" : `<button class="text-button" data-action="license">Licencia</button>`}
     </header>
-    <main id="main">${content}</main>
+    <main id="main" tabindex="-1">${content}</main>
     <div class="live-region" aria-live="polite" aria-atomic="true">${h(processing)}</div>`;
   bindGlobal();
 }
@@ -60,8 +62,8 @@ function renderEmpty() {
       <p class="rail-note">Tu audio no se sube. El modelo se ejecuta aquí.</p>
     </div>
     <div class="empty-copy">
-      <p class="kicker">Margen de estudio privado</p>
-      <h1 id="empty-title" tabindex="-1">Escucha.<br><em>Marca lo importante.</em></h1>
+      <p class="kicker">Notas de audio privadas</p>
+      <h1 id="empty-title" tabindex="-1">Transcribe.<br><em>Marca lo importante.</em></h1>
       <p class="lede">Transcribe una clase o reunión en español, fija tus propias preguntas al momento exacto y vuelve a un máximo de cinco.</p>
       <div class="empty-actions">
         <button class="primary" data-action="new">Importar una grabación</button>
@@ -274,18 +276,61 @@ function showReview(session: Session) {
 }
 
 function showLicenseDialog() {
-  const token = localStorage.getItem("sb_license:spanish-audio-notes") ?? "";
+  const token = localStorage.getItem(LICENSE_KEY) ?? "";
   const dialog = dialogFrame("Licencia de pago", `<p>La versión gratuita permite tres sesiones y cinco marcas por sesión. Una compra única de <b>€24</b> activa sesiones y marcas sin límite, además del modelo grande.</p><a class="primary full link-button" href="https://api.sociobot.in/api/v1/products/spanish-audio-notes/checkout" target="_blank" rel="noreferrer">Comprar una vez · €24</a><hr><form id="license-form"><label for="license-token">¿Ya compraste? Pega tu licencia</label><input id="license-token" name="token" value="${h(token)}" autocomplete="off" /><button class="secondary full" type="submit">Verificar licencia</button><p class="fine" id="license-status" aria-live="polite">La versión gratuita sigue disponible durante la verificación.</p></form>`);
-  dialog.querySelector<HTMLFormElement>("#license-form")!.addEventListener("submit", async (event) => { event.preventDefault(); const value = dialog.querySelector<HTMLInputElement>("#license-token")!.value.trim(); const status = dialog.querySelector("#license-status")!; if (!value) { status.textContent = "Pega el código de licencia para continuar."; return; } status.textContent = "Verificando…"; try { const response = await fetch(`https://api.sociobot.in/api/v1/products/spanish-audio-notes/verify?license=${encodeURIComponent(value)}`); const result = await response.json() as { valid: boolean }; if (result.valid) { localStorage.setItem("sb_license:spanish-audio-notes", value); localStorage.setItem("sb_license_verdict:spanish-audio-notes", JSON.stringify({ valid: true, checkedAt: Date.now() })); status.textContent = "Licencia activa en este dispositivo."; } else status.textContent = "Esta licencia ya no está activa. Revisa el código o compra una nueva."; } catch { status.textContent = "Sin conexión. Conservamos tu acceso anterior y lo verificaremos más tarde."; } });
+  dialog.querySelector<HTMLFormElement>("#license-form")!.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const value = dialog.querySelector<HTMLInputElement>("#license-token")!.value.trim();
+    const status = dialog.querySelector("#license-status")!;
+    if (!value) { status.textContent = "Pega el código de licencia para continuar."; return; }
+    storeUnverifiedLicense(value);
+    status.textContent = "Verificando…";
+    try {
+      const response = await fetch(`https://api.sociobot.in/api/v1/products/spanish-audio-notes/verify?license=${encodeURIComponent(value)}`);
+      if (!response.ok) throw new Error(`License verification returned ${response.status}`);
+      const result = await response.json() as { valid?: unknown; reason?: string; expires_at?: string | null };
+      if (typeof result.valid !== "boolean") throw new Error("License verification returned an invalid response");
+      storeLicenseVerdict(value, { valid: result.valid, reason: result.reason, expires_at: result.expires_at });
+      status.textContent = result.valid ? "Licencia activa en este dispositivo." : "Esta licencia ya no está activa. Revisa el código o compra una nueva.";
+    } catch {
+      status.textContent = hasLicense()
+        ? "Sin conexión. Usamos la última verificación válida y lo intentaremos más tarde."
+        : "Sin conexión. La licencia debe verificarse una vez antes de activar las funciones de pago.";
+    }
+  });
 }
 
 function ensureAudio(session: Session) {
   if (!session.audioPath || audio?.dataset.session === session.id) return;
-  stopAudio(); audio = new Audio(session.sample ? session.audioPath : convertFileSrc(session.audioPath)); audio.dataset.session = session.id;
-  audio.addEventListener("timeupdate", () => { currentTime = audio!.currentTime; activeSegmentId = session.segments.find((s) => currentTime >= s.start && currentTime < s.end)?.id ?? ""; const range = root.querySelector<HTMLInputElement>("[data-scrub]"); if (range) range.value = String(currentTime); root.querySelector(".timecode")!.textContent = formatTime(currentTime); root.querySelectorAll(".segment").forEach((el) => el.classList.toggle("playing", (el as HTMLElement).dataset.segment === activeSegmentId)); });
-  audio.addEventListener("loadedmetadata", () => { session.duration = audio!.duration; persist(); });
+  stopAudio();
+  audio = new Audio();
+  audio.dataset.session = session.id;
+  const audioSmoke = new URLSearchParams(location.search).get("audio_smoke") === "1";
+  let audioSmokeComplete = false;
+  audio.addEventListener("timeupdate", () => { currentTime = audio!.currentTime; activeSegmentId = session.segments.find((s) => currentTime >= s.start && currentTime < s.end)?.id ?? ""; const range = root.querySelector<HTMLInputElement>("[data-scrub]"); if (range) range.value = String(currentTime); root.querySelector(".timecode")!.textContent = formatTime(currentTime); root.querySelectorAll(".segment").forEach((el) => el.classList.toggle("playing", (el as HTMLElement).dataset.segment === activeSegmentId)); if (audioSmoke && !audioSmokeComplete && currentTime > 0.5) { audioSmokeComplete = true; void invoke("complete_audio_smoke", { state: "playing" }); } });
+  audio.addEventListener("loadedmetadata", () => {
+    session.duration = audio!.duration;
+    persist();
+    if (audioSmoke) void invoke("complete_audio_smoke", { state: "metadata" });
+  });
+  if (session.sample && isTauri) {
+    const currentAudio = audio;
+    void fetch(session.audioPath)
+      .then((response) => {
+        if (!response.ok) throw new Error(`Sample audio returned ${response.status}`);
+        return response.blob();
+      })
+      .then((blob) => {
+        if (audio !== currentAudio) return;
+        audioObjectUrl = URL.createObjectURL(blob);
+        currentAudio.src = audioObjectUrl;
+      })
+      .catch(announceError);
+  } else {
+    audio.src = convertFileSrc(session.audioPath);
+  }
 }
-function stopAudio() { audio?.pause(); audio = undefined; currentTime = 0; activeSegmentId = ""; }
+function stopAudio() { audio?.pause(); audio = undefined; if (audioObjectUrl) URL.revokeObjectURL(audioObjectUrl); audioObjectUrl = undefined; currentTime = 0; activeSegmentId = ""; }
 function togglePlayback() { if (!audio) return; if (audio.paused) void audio.play(); else audio.pause(); render(); }
 function seek(value: number) { currentTime = value; if (audio) { audio.currentTime = value; void audio.play(); } render(); }
 function deleteSession(session: Session) { if (!confirm(`¿Borrar “${session.title}” y todas sus marcas de este dispositivo? Esta acción no se puede deshacer.`)) return; stopAudio(); state.sessions = state.sessions.filter((s) => s.id !== session.id); state.activeId = state.sessions[0]?.id; persist(); render(); }
@@ -303,8 +348,26 @@ window.addEventListener("keydown", (event) => {
 });
 
 const returnedLicense = new URLSearchParams(location.search).get("license");
-if (returnedLicense) { localStorage.setItem("sb_license:spanish-audio-notes", returnedLicense); history.replaceState({}, "", location.pathname); }
-async function refreshLicense() { const token = localStorage.getItem("sb_license:spanish-audio-notes"); if (!token) return; const cacheKey = "sb_license_verdict:spanish-audio-notes"; try { const cached = JSON.parse(localStorage.getItem(cacheKey) ?? "null") as { checkedAt?: number } | null; if (cached?.checkedAt && Date.now() - cached.checkedAt < 86_400_000) return; const response = await fetch(`https://api.sociobot.in/api/v1/products/spanish-audio-notes/verify?license=${encodeURIComponent(token)}`); const verdict = await response.json() as { valid: boolean }; localStorage.setItem(cacheKey, JSON.stringify({ ...verdict, checkedAt: Date.now() })); if (!verdict.valid) localStorage.removeItem("sb_license:spanish-audio-notes"); } catch { /* Keep the local token while offline. */ } }
+if (returnedLicense) {
+  storeUnverifiedLicense(returnedLicense);
+  const params = new URLSearchParams(location.search);
+  params.delete("license");
+  history.replaceState({}, "", `${location.pathname}${params.size ? `?${params}` : ""}${location.hash}`);
+}
+async function refreshLicense() {
+  const token = localStorage.getItem(LICENSE_KEY);
+  if (!token || !licenseNeedsRefresh()) return;
+  try {
+    const response = await fetch(`https://api.sociobot.in/api/v1/products/spanish-audio-notes/verify?license=${encodeURIComponent(token)}`);
+    if (!response.ok) throw new Error(`License verification returned ${response.status}`);
+    const verdict = await response.json() as { valid?: unknown; reason?: string; expires_at?: string | null };
+    if (typeof verdict.valid !== "boolean") throw new Error("License verification returned an invalid response");
+    storeLicenseVerdict(token, { valid: verdict.valid, reason: verdict.reason, expires_at: verdict.expires_at });
+  } catch {
+    recordLicenseAttempt(token);
+    /* A previously verified token remains usable offline; an unverified token stays locked. */
+  }
+}
 if (demoMode && !active()) createSample();
 else render();
 void refreshLicense();

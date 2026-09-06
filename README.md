@@ -6,11 +6,11 @@ The Tauri desktop app asks for consent before import. Its Rust process decodes t
 
 Try the isolated sample at [spanish-audio-notes.sociobot.in/demo/](https://spanish-audio-notes.sociobot.in/demo/). It ships with a 12-second audio texture, six transcript segments, and five questions. Demo changes use a separate `demo:` storage key and never touch real sessions.
 
-The free version includes three sessions and five pins per session. A one-time €24 purchase activates unlimited sessions and pins plus the large local model. Checkout and license verification use the Sociobot billing API. There are no analytics or third-party scripts.
+The free version includes three sessions and five pins per session. A one-time €24 purchase activates unlimited sessions and pins plus the large local model. A token activates paid limits only after a valid Sociobot response. A cached valid verdict keeps that access available offline. There are no analytics or third-party scripts.
 
 ## Run and verify
 
-Requirements: Node.js 22+, Rust stable, CMake, libclang, and the [Tauri 2 system dependencies](https://v2.tauri.app/start/prerequisites/) for your operating system.
+Requirements: Node.js 22+, Rust stable, CMake, libclang, and the [Tauri 2 system dependencies](https://v2.tauri.app/start/prerequisites/) for your operating system. Full installer claim checks also require PowerShell 7. Linux AppImage checks require Xvfb, D-Bus, PulseAudio, xdotool, and the GStreamer base, good, bad, and ALSA plug-ins.
 
 ```sh
 npm ci
@@ -18,6 +18,7 @@ npm run dev          # desktop UI at http://127.0.0.1:1420
 npm run dev:site     # site and demo at http://127.0.0.1:5173
 npm test
 npm run test:e2e
+npm run test:claims
 npm run check
 npm run build
 ```
@@ -44,6 +45,6 @@ Deploy only `dist/site/`. Infrastructure, DNS, and billing configuration stay ou
 
 ## Privacy and licensing
 
-The app has no telemetry. Its network use is limited to model download, hosted checkout, and license verification. The public site calls GitHub’s API for release metadata. See [/privacy/](https://spanish-audio-notes.sociobot.in/privacy/) and [/terms/](https://spanish-audio-notes.sociobot.in/terms/).
+The app sends no recording during transcription. It downloads the selected model and contacts Sociobot for checkout and license verification. The public site calls GitHub’s API for release metadata. See [/privacy/](https://spanish-audio-notes.sociobot.in/privacy/) and [/terms/](https://spanish-audio-notes.sociobot.in/terms/).
 
 Whisper source and model weights use the MIT license. Details are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Audio Margin itself is MIT licensed; see [LICENSE](LICENSE).

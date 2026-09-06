@@ -19,6 +19,9 @@ jobs:
       - run: npx playwright install chromium
       - run: npm test
       - run: npm run test:e2e
+      - run: npm run test:installers
+      - run: npm run test:native-integrity
+      - run: npm run test:native-transcription
       - run: npm run check
       - run: cargo test --manifest-path src-tauri/Cargo.toml
       - run: npm run build
@@ -54,13 +57,16 @@ jobs:
         run: echo "MACOSX_DEPLOYMENT_TARGET=10.15" >> "$GITHUB_ENV"
       - name: Install Linux system packages
         if: matrix.platform == 'ubuntu-22.04'
-        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libasound2-dev libclang-dev cmake file
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libasound2-dev libclang-dev cmake file gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-alsa pulseaudio xdotool xvfb dbus-x11
       - run: npm ci
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           args: ${{ matrix.target && format('--target {0}', matrix.target) || '' }}
+      - name: Exercise bundled AppImage audio
+        if: matrix.platform == 'ubuntu-22.04'
+        run: npm run test:appimage
       - uses: actions/upload-artifact@v4
         with:
           name: audio-margin-${{ matrix.label }}

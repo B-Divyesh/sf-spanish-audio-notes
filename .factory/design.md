@@ -42,3 +42,5 @@ Prompt sheet:
 Generation: Azure AI Foundry `factory-image` via `/opt/fleet/lib/gen-image.sh`, generated 2026-08-28. The output is original project artwork. Source PNG and prompt sidecar live in `assets/src/`; optimized WebP is shipped in `public/assets/`.
 
 The three demo walkthrough frames are screenshots of the repository's own sample workspace, captured locally with Playwright on 2026-08-30. They contain only deterministic bundled sample data and are optimized to WebP during `npm run assets`. The sample audio texture is generated deterministically by `scripts/optimize-assets.mjs`; it contains no recorded voice or third-party material.
+
+The native transcription claim fixture at `tests/fixtures/spanish-claim.wav` was generated on 2026-09-06 with the open-source eSpeak NG Spanish voice, then converted to 16 kHz mono PCM with FFmpeg. It contains only the sentence “Este audio en español se transcribe de forma local” and no recorded person.

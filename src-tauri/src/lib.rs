@@ -3,6 +3,7 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::{
     fs::File,
+    io::Read,
     path::{Path, PathBuf},
 };
 use symphonia::core::{
@@ -59,18 +60,54 @@ fn model_path(app: &AppHandle, model: &str) -> Result<PathBuf, String> {
         .join(file))
 }
 
-#[tauri::command]
-fn model_ready(app: AppHandle, model: String) -> Result<bool, String> {
-    Ok(model_path(&app, &model)?.is_file())
+fn sha256_file(path: &Path) -> Result<String, String> {
+    let mut file = File::open(path).map_err(|e| e.to_string())?;
+    let mut hasher = Sha256::new();
+    let mut buffer = [0_u8; 64 * 1024];
+    loop {
+        let read = file.read(&mut buffer).map_err(|e| e.to_string())?;
+        if read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..read]);
+    }
+    Ok(format!("{:x}", hasher.finalize()))
+}
+
+fn verified_model_file(path: &Path, expected_hash: &str) -> Result<bool, String> {
+    if !path.is_file() {
+        return Ok(false);
+    }
+    if sha256_file(path)? == expected_hash {
+        return Ok(true);
+    }
+    std::fs::remove_file(path).map_err(|e| e.to_string())?;
+    Ok(false)
+}
+
+fn install_verified_download(
+    temp: &Path,
+    destination: &Path,
+    expected_hash: &str,
+) -> Result<(), String> {
+    if sha256_file(temp)? != expected_hash {
+        let _ = std::fs::remove_file(temp);
+        return Err("La verificación del modelo falló; se eliminó la descarga.".into());
+    }
+    std::fs::rename(temp, destination).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-async fn download_model(app: AppHandle, model: String) -> Result<(), String> {
+fn model_ready(app: AppHandle, model: String) -> Result<bool, String> {
     let path = model_path(&app, &model)?;
-    if path.is_file() {
+    let (_, _, expected_hash) = model_info(&model)?;
+    verified_model_file(&path, expected_hash)
+}
+
+async fn download_model_file(url: &str, path: &Path, expected_hash: &str) -> Result<(), String> {
+    if verified_model_file(path, expected_hash)? {
         return Ok(());
     }
-    let (_, url, expected_hash) = model_info(&model)?;
     let parent = path.parent().ok_or("Ruta de modelo no válida")?;
     tokio::fs::create_dir_all(parent)
         .await
@@ -88,22 +125,30 @@ async fn download_model(app: AppHandle, model: String) -> Result<(), String> {
     let mut output = tokio::fs::File::create(&temp)
         .await
         .map_err(|e| e.to_string())?;
-    let mut hasher = Sha256::new();
     let mut stream = response.bytes_stream();
     while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|e| e.to_string())?;
-        hasher.update(&chunk);
-        output.write_all(&chunk).await.map_err(|e| e.to_string())?;
+        let chunk = match chunk {
+            Ok(chunk) => chunk,
+            Err(error) => {
+                let _ = tokio::fs::remove_file(&temp).await;
+                return Err(error.to_string());
+            }
+        };
+        if let Err(error) = output.write_all(&chunk).await {
+            let _ = tokio::fs::remove_file(&temp).await;
+            return Err(error.to_string());
+        }
     }
     output.flush().await.map_err(|e| e.to_string())?;
-    let actual_hash = format!("{:x}", hasher.finalize());
-    if actual_hash != expected_hash {
-        let _ = tokio::fs::remove_file(&temp).await;
-        return Err("La verificación del modelo falló; se eliminó la descarga.".into());
-    }
-    tokio::fs::rename(&temp, &path)
-        .await
-        .map_err(|e| e.to_string())
+    drop(output);
+    install_verified_download(&temp, path, expected_hash)
+}
+
+#[tauri::command]
+async fn download_model(app: AppHandle, model: String) -> Result<(), String> {
+    let path = model_path(&app, &model)?;
+    let (_, url, expected_hash) = model_info(&model)?;
+    download_model_file(url, &path, expected_hash).await
 }
 
 fn decode_audio(path: &Path) -> Result<(Vec<f32>, u32), String> {
@@ -183,6 +228,55 @@ fn resample_linear(input: &[f32], source_rate: u32) -> Vec<f32> {
         .collect()
 }
 
+fn transcribe_file(path: &Path, model_file: &Path, variant: &str) -> Result<Transcript, String> {
+    let (decoded, rate) = decode_audio(path)?;
+    let samples = resample_linear(&decoded, rate);
+    let duration = samples.len() as f64 / 16_000.0;
+    let context = WhisperContext::new_with_params(
+        model_file.to_str().ok_or("Ruta del modelo no válida")?,
+        WhisperContextParameters::default(),
+    )
+    .map_err(|e| format!("No se pudo abrir el modelo: {e}"))?;
+    let mut state = context.create_state().map_err(|e| e.to_string())?;
+    let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
+    params.set_language(Some("es"));
+    params.set_translate(false);
+    params.set_print_progress(false);
+    params.set_print_realtime(false);
+    params.set_print_timestamps(false);
+    params.set_initial_prompt(&format!(
+        "Transcripción fiel de una clase o reunión en español. Variante: {variant}."
+    ));
+    state
+        .full(params, &samples)
+        .map_err(|e| format!("La transcripción falló: {e}"))?;
+    let count = state.full_n_segments().map_err(|e| e.to_string())?;
+    let mut segments = Vec::with_capacity(count as usize);
+    for index in 0..count {
+        let text = state
+            .full_get_segment_text(index)
+            .map_err(|e| e.to_string())?
+            .trim()
+            .to_string();
+        if text.is_empty() {
+            continue;
+        }
+        segments.push(Segment {
+            id: format!("segment-{index}"),
+            start: state
+                .full_get_segment_t0(index)
+                .map_err(|e| e.to_string())? as f64
+                / 100.0,
+            end: state
+                .full_get_segment_t1(index)
+                .map_err(|e| e.to_string())? as f64
+                / 100.0,
+            text,
+        });
+    }
+    Ok(Transcript { segments, duration })
+}
+
 #[tauri::command]
 async fn transcribe_audio(
     app: AppHandle,
@@ -191,59 +285,22 @@ async fn transcribe_audio(
     variant: String,
 ) -> Result<Transcript, String> {
     let model_file = model_path(&app, &model)?;
-    if !model_file.is_file() {
+    let (_, _, expected_hash) = model_info(&model)?;
+    if !verified_model_file(&model_file, expected_hash)? {
         return Err("Primero descarga el modelo local.".into());
     }
     tauri::async_runtime::spawn_blocking(move || {
-        let (decoded, rate) = decode_audio(Path::new(&path))?;
-        let samples = resample_linear(&decoded, rate);
-        let duration = samples.len() as f64 / 16_000.0;
-        let context = WhisperContext::new_with_params(
-            model_file.to_str().ok_or("Ruta del modelo no válida")?,
-            WhisperContextParameters::default(),
-        )
-        .map_err(|e| format!("No se pudo abrir el modelo: {e}"))?;
-        let mut state = context.create_state().map_err(|e| e.to_string())?;
-        let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
-        params.set_language(Some("es"));
-        params.set_translate(false);
-        params.set_print_progress(false);
-        params.set_print_realtime(false);
-        params.set_print_timestamps(false);
-        params.set_initial_prompt(&format!(
-            "Transcripción fiel de una clase o reunión en español. Variante: {variant}."
-        ));
-        state
-            .full(params, &samples)
-            .map_err(|e| format!("La transcripción falló: {e}"))?;
-        let count = state.full_n_segments().map_err(|e| e.to_string())?;
-        let mut segments = Vec::with_capacity(count as usize);
-        for index in 0..count {
-            let text = state
-                .full_get_segment_text(index)
-                .map_err(|e| e.to_string())?
-                .trim()
-                .to_string();
-            if text.is_empty() {
-                continue;
-            }
-            segments.push(Segment {
-                id: format!("segment-{index}"),
-                start: state
-                    .full_get_segment_t0(index)
-                    .map_err(|e| e.to_string())? as f64
-                    / 100.0,
-                end: state
-                    .full_get_segment_t1(index)
-                    .map_err(|e| e.to_string())? as f64
-                    / 100.0,
-                text,
-            });
-        }
-        Ok(Transcript { segments, duration })
+        transcribe_file(Path::new(&path), &model_file, &variant)
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+fn complete_audio_smoke(state: String) -> Result<(), String> {
+    let marker = std::env::var_os("AUDIO_MARGIN_AUDIO_SMOKE_MARKER")
+        .ok_or("La prueba de audio no está activa")?;
+    std::fs::write(marker, format!("{state}\n")).map_err(|e| e.to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -253,8 +310,20 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             model_ready,
             download_model,
-            transcribe_audio
+            transcribe_audio,
+            complete_audio_smoke
         ])
+        .setup(|app| {
+            if std::env::var_os("AUDIO_MARGIN_AUDIO_SMOKE").is_some() {
+                if let Some(window) = app.get_webview_window("main") {
+                    tauri::async_runtime::spawn(async move {
+                        tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+                        let _ = window.eval("location.replace('/?demo=1&audio_smoke=1')");
+                    });
+                }
+            }
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running Audio Margin");
 }
@@ -274,10 +343,74 @@ mod tests {
     }
     #[test]
     fn bundled_demo_audio_decodes() {
-        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../public/assets/audio-margin-sample.wav");
+        let path =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../public/assets/audio-margin-sample.wav");
         let (samples, rate) = decode_audio(&path).expect("sample WAV should decode");
         assert_eq!(rate, 16_000);
         assert_eq!(samples.len(), 16_000 * 12);
+    }
+
+    #[test]
+    fn claim_model_integrity_accepts_only_a_matching_download() {
+        let root =
+            std::env::temp_dir().join(format!("audio-margin-integrity-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).expect("temporary model directory");
+        let temp = root.join("model.part");
+        let destination = root.join("model.bin");
+
+        std::fs::write(&temp, b"verified model fixture").expect("write fixture");
+        let expected = sha256_file(&temp).expect("hash fixture");
+        install_verified_download(&temp, &destination, &expected)
+            .expect("matching download installs");
+        assert!(destination.is_file());
+        assert_eq!(
+            std::fs::read(&destination).unwrap(),
+            b"verified model fixture"
+        );
+
+        std::fs::write(&temp, b"corrupt model fixture").expect("write corrupt fixture");
+        let error = install_verified_download(&temp, &destination, &"0".repeat(64)).unwrap_err();
+        assert!(error.contains("se eliminó"));
+        assert!(!temp.exists(), "a failed .part download must be deleted");
+        assert_eq!(
+            std::fs::read(&destination).unwrap(),
+            b"verified model fixture",
+            "a corrupt retry must not replace the verified model"
+        );
+        println!(
+            "@claim:model-integrity accepted the matching fixture and deleted the corrupt download"
+        );
+        std::fs::remove_dir_all(root).expect("remove temporary model directory");
+    }
+
+    #[test]
+    #[ignore = "downloads the public 75 MB Whisper model; run through npm run test:native-transcription"]
+    fn claim_native_local_transcription_runs_offline_after_model_download() {
+        let model_file = std::env::var_os("AUDIO_MARGIN_CLAIM_MODEL")
+            .map(PathBuf::from)
+            .expect("AUDIO_MARGIN_CLAIM_MODEL must point to a verified tiny model");
+        let (_, _, expected_hash) = model_info("tiny").unwrap();
+        assert!(
+            verified_model_file(&model_file, expected_hash).unwrap(),
+            "claim model hash must match the pinned hash"
+        );
+        let audio_file =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../tests/fixtures/spanish-claim.wav");
+        let transcript = transcribe_file(&audio_file, &model_file, "Español general")
+            .expect("local Whisper transcription");
+        let text = transcript
+            .segments
+            .iter()
+            .map(|segment| segment.text.as_str())
+            .collect::<Vec<_>>()
+            .join(" ")
+            .to_lowercase();
+        assert!(transcript.duration > 2.0);
+        assert!(
+            text.contains("audio") || text.contains("español") || text.contains("local"),
+            "unexpected transcript: {text}"
+        );
+        println!("@claim:native-local-processing decoded and transcribed locally: {text}");
     }
 }

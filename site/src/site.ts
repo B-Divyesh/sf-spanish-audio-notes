@@ -1,6 +1,7 @@
 import "./style.css";
 import "./mobile.css";
 import "./additions.css";
+import { storeUnverifiedLicense } from "../../app/src/license";
 
 type ReleaseAsset = { name: string; browser_download_url: string };
 type GitHubRelease = { tag_name: string; html_url: string; assets: ReleaseAsset[] };
@@ -81,7 +82,9 @@ document.querySelectorAll<HTMLButtonElement>("[data-copy]").forEach((element) =>
 
 const returnedLicense = new URLSearchParams(location.search).get("license");
 if (returnedLicense) {
-  localStorage.setItem("sb_license:spanish-audio-notes", returnedLicense);
-  history.replaceState({}, "", location.pathname);
+  storeUnverifiedLicense(returnedLicense);
+  const params = new URLSearchParams(location.search);
+  params.delete("license");
+  history.replaceState({}, "", `${location.pathname}${params.size ? `?${params}` : ""}${location.hash}`);
 }
 void resolveDownload();

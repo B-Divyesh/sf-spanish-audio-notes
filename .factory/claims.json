@@ -56,6 +56,13 @@
     "sandbox": "instrument getUserMedia, open the import flow, and assert no capture request"
   },
   {
+    "id": "no-account",
+    "claim": "The local import flow requires no account or sign-in.",
+    "where": "landing first-screen facts, app empty state",
+    "test": "npm run test:e2e -- --grep @claim:no-account",
+    "sandbox": "fresh browser context; open the real import flow and assert there are no identity fields or account requests"
+  },
+  {
     "id": "one-time-price",
     "claim": "A €24 one-time license has a hosted checkout and paste-to-restore path.",
     "where": "landing pricing, app, terms, README",
@@ -108,21 +115,35 @@
     "id": "installer-checksum",
     "claim": "The shell and PowerShell installers verify SHA-256 before opening or installing a package.",
     "where": "landing, README",
-    "test": "npm test -- -t @claim:installer-checksum",
-    "sandbox": "inspect both shipped installers and the release-manifest generator for the matching SHA-256 checks"
+    "test": "npm run test:installers",
+    "sandbox": "local HTTP fixture; run both shipped installers and assert matching bytes install while a mismatched checksum fails and installs nothing"
   },
   {
     "id": "model-integrity",
-    "claim": "The native process decodes chosen audio and runs Whisper locally; model downloads use pinned SHA-256 hashes.",
-    "where": "app, README",
-    "test": "npm test -- -t @claim:model-integrity",
-    "sandbox": "inspect the native model table and the mismatch deletion branch"
+    "claim": "The native app installs a model only after its pinned SHA-256 hash matches and deletes a corrupt download.",
+    "where": "app, privacy page, README",
+    "test": "npm run test:native-integrity",
+    "sandbox": "temporary native model directory; install matching fixture bytes, reject corrupt bytes, and assert the partial file is deleted"
+  },
+  {
+    "id": "native-local-processing",
+    "claim": "After its model download, the native app decodes and transcribes the chosen audio locally.",
+    "where": "landing, app, privacy page, README",
+    "test": "npm run test:native-transcription",
+    "sandbox": "verified public Tiny model plus shipped synthetic Spanish WAV; block HTTP proxies during the native decode and Whisper transcription"
+  },
+  {
+    "id": "linux-audio-playback",
+    "claim": "The Linux AppImage can initialize and play the bundled sample audio.",
+    "where": "Linux download action and desktop sample action",
+    "test": "npm run test:claim:appimage",
+    "sandbox": "fresh AppImage under Xvfb/DBus with the audio-smoke entry; require a delayed WebKit marker and no missing autoaudiosink error"
   },
   {
     "id": "license-return",
-    "claim": "A returned license is stored locally and its valid verdict is reused for one day.",
+    "claim": "Paid limits open only for a token with a valid cached verdict; that verdict is reused for one day.",
     "where": "app, terms, README",
     "test": "npm run test:e2e -- --grep @claim:license-return",
-    "sandbox": "mock the product verification endpoint, load a return token, reload, and assert only one verification request"
+    "sandbox": "fresh browser contexts; reject a forged token offline, then verify a real fixture token once and prove its cached offline access"
   }
 ]

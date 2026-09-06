@@ -1,7 +1,7 @@
 {
   "name": "audio-margin",
   "private": true,
-  "version": "0.1.4",
+  "version": "0.1.5",
   "type": "module",
   "scripts": {
     "dev": "vite --config vite.app.config.ts",
@@ -11,7 +11,12 @@
     "build:site": "vite build --config vite.site.config.ts",
     "assets": "node scripts/optimize-assets.mjs",
     "test": "vitest run",
-    "test:claims": "playwright test --grep @claim && vitest run -t @claim",
+    "test:claims": "playwright test --grep @claim && vitest run -t @claim && npm run test:installers && npm run test:native-integrity && npm run test:native-transcription && npm run test:claim:appimage",
+    "test:installers": "node scripts/test-installers.mjs",
+    "test:native-integrity": "cargo test --manifest-path src-tauri/Cargo.toml claim_model_integrity -- --nocapture",
+    "test:native-transcription": "node scripts/run-native-transcription-claim.mjs",
+    "test:appimage": "sh scripts/test-appimage-audio.sh",
+    "test:claim:appimage": "CI=true npm run tauri build -- --bundles appimage && npm run test:appimage",
     "test:e2e": "playwright test",
     "check": "tsc --noEmit && cargo check --manifest-path src-tauri/Cargo.toml",
     "tauri": "tauri"

@@ -1,10 +1,10 @@
 #!/bin/sh
 set -eu
 
-manifest_url="https://github.com/B-Divyesh/sf-spanish-audio-notes/releases/latest/download/latest.json"
+manifest_url="${AUDIO_MARGIN_MANIFEST_URL:-https://github.com/B-Divyesh/sf-spanish-audio-notes/releases/latest/download/latest.json}"
 manifest="$(curl -fsSL "$manifest_url")"
-os="$(uname -s)"
-arch="$(uname -m)"
+os="${AUDIO_MARGIN_TEST_OS:-$(uname -s)}"
+arch="${AUDIO_MARGIN_TEST_ARCH:-$(uname -m)}"
 case "$os:$arch" in
   Linux:x86_64|Linux:amd64) key="linux" ;;
   Darwin:arm64|Darwin:aarch64) key="macos_arm64" ;;
@@ -25,15 +25,15 @@ if command -v sha256sum >/dev/null 2>&1; then actual="$(sha256sum "$tmp_dir/$fil
 [ "$actual" = "$expected" ] || { printf '%s\n' "SHA-256 mismatch; refusing to install." >&2; exit 1; }
 
 if [ "$os" = "Linux" ]; then
-  destination="${XDG_BIN_HOME:-$HOME/.local/bin}"
+  destination="${AUDIO_MARGIN_INSTALL_DIR:-${XDG_BIN_HOME:-$HOME/.local/bin}}"
   mkdir -p "$destination"
   install -m 755 "$tmp_dir/$filename" "$destination/audio-margin"
   printf '%s\n' "Verified and installed Audio Margin at $destination/audio-margin"
   printf '%s\n' "If needed, add $destination to PATH. Run: audio-margin"
 else
-  destination="$HOME/Downloads/$filename"
+  destination="${AUDIO_MARGIN_INSTALL_DIR:-$HOME/Downloads}/$filename"
   cp "$tmp_dir/$filename" "$destination"
   printf '%s\n' "Verified Audio Margin and saved $destination"
   printf '%s\n' "Open the DMG, then right-click Audio Margin → Open (the first release is unsigned)."
-  open "$destination"
+  if [ "${AUDIO_MARGIN_NO_LAUNCH:-0}" != "1" ]; then open "$destination"; fi
 fi
