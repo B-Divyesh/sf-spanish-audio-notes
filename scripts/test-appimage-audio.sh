@@ -21,7 +21,10 @@ audio_margin_pid=""
 cleanup() {
   if [ -n "$audio_margin_pid" ] && kill -0 "$audio_margin_pid" 2>/dev/null; then kill "$audio_margin_pid" 2>/dev/null || true; fi
   XDG_RUNTIME_DIR="$runtime_dir" pulseaudio -k >/dev/null 2>&1 || true
-  rm -rf "$test_root"
+  # xdg-document-portal can leave a runner-owned FUSE mount below
+  # XDG_RUNTIME_DIR. Cleanup must not turn a successful playback assertion
+  # into a failed CI job; the isolated runner removes its temporary tree.
+  rm -rf "$test_root" 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
 
