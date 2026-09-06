@@ -76,6 +76,7 @@ jobs:
             src-tauri/target/**/bundle/**/*.exe
             src-tauri/target/**/bundle/**/*.AppImage
             src-tauri/target/**/bundle/**/*.deb
+            src-tauri/target/**/bundle/**/*.rpm
           if-no-files-found: error
   release:
     needs: build
